@@ -10,14 +10,19 @@
 using namespace std;
 
 int main(){
+    read_history("shellHistory.txt");
     string prevDir;
     char startDir[PATH_MAX];
     getcwd(startDir,sizeof(startDir));
     shellStart=startDir;
+    stifle_history(20);
     while(1){
         string str;
-        shellPrompt();
-        getline(cin,str);
+        char* input;
+        char* path;
+        path=strdup(shellPrompt().c_str());
+        input=readline(path);
+        str=input;
         vector<string> tokens;
         tokenize(str,tokens);
         bool isBgProcess=false;
@@ -30,7 +35,8 @@ int main(){
                 }
             }
             if(args[0]=="exit"){
-                break;
+                write_history("shellHistory.txt");
+                return 0;
             }
             else if(args[0]=="pwd"){
                 runpwd();
@@ -50,11 +56,17 @@ int main(){
             else if(isBgProcess==true){
                 runBgProcess(args);
             }
+            else if(args[0]=="history"){
+                runHistory(args);
+            }
             else{
                 cout<<"Command not found";
             }
+            
+
         }
-    }
+        add_history(input);
+        }
     return 1;
 }
 

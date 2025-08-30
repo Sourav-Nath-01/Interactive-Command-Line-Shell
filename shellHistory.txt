@@ -1,0 +1,6 @@
+history
+ls
+history
+ls -a
+history
+exit

@@ -11,7 +11,7 @@ extern string shellStart;
 
 // functions
 string checkingPath(string dir, string home);
-void shellPrompt();
+string shellPrompt();
 void splitToken(string str, vector<string>& args);
 void tokenize(string str, vector<string> &tokens);
 void runpwd();
@@ -24,5 +24,6 @@ void runSearch(vector<string>& args);
 void search(string fileName);
 bool searchRecursively(DIR* currPath,string targetFile);
 void runBgProcess(vector<string>& args);
+void runHistory(vector<string>&);
 #endif
 

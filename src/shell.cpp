@@ -36,7 +36,7 @@ string checkingPath(string dir,string home){
     return path;
 }
 
-void shellPrompt(){
+string shellPrompt(){
     char hostname[HOST_NAME_MAX];
     gethostname(hostname,sizeof(hostname));
     struct passwd *pw=getpwuid(getuid());
@@ -47,7 +47,8 @@ void shellPrompt(){
     string home=getenv("HOME");
 
     dir=checkingPath(dir,home);
-    cout<<username<<"@"<<hostname<<":"<<dir<<"> ";
+    string res=username+"@"+hostname+":"+dir+"> ";
+    return res;
 }
 
 void splitToken(string str,vector<string>& args){
@@ -326,7 +327,21 @@ void runBgProcess(vector<string>& args){
         execvp(newArgs[0],newArgs);
     }
 }
-
+//will do later
 void runPinfo(pid_t pid,bool isBg){
-    
+
+}
+//
+void runHistory(vector<string>& args){
+    int limit=10;
+    for(int i=1;i<args.size();i++){
+        if(args[i]!=" "){
+            limit=min(limit,stoi(args[i]));
+        }
+    }
+    HIST_ENTRY **hist=history_list();
+    int len=history_length;
+    for(int i=0;i<len && i<limit;i++){
+        cout<<hist[i]->line<<endl;
+    }
 }
