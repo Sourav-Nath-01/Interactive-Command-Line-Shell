@@ -11,7 +11,7 @@
 #include<grp.h>
 #include <readline/readline.h>
 #include <readline/history.h>
-
+#include<fstream>
 using namespace std;
 
 string shellStart;
@@ -328,8 +328,28 @@ void runBgProcess(vector<string>& args){
     }
 }
 //will do later
-void runPinfo(pid_t pid,bool isBg){
-
+void runPinfo(pid_t pid,bool isBg,vector<string>& args){
+    for(int i=1;i<args.size();i++){
+        pid=stoi(args[i]);
+    }
+    string strPid=to_string(pid);
+    string path="/proc/"+strPid+"/stat";
+    string exePath="/proc/"+strPid+"/exe";
+    ifstream stat_file(path);
+    string processStatus,memorySize;
+    string skip;
+    stat_file>>skip;
+    stat_file>>skip;
+    stat_file>>processStatus;
+    int temp=20;
+    while(temp--){
+        stat_file>>skip;
+    }   
+    stat_file>>memorySize;
+    char exePathStore[PATH_MAX];
+    int len=readlink(exePath.c_str(),exePathStore,sizeof(exePathStore)-1);
+    exePathStore[len]='\0';
+    cout<<processStatus<<" "<<memorySize<<" "<<exePath<<endl;
 }
 //
 void runHistory(vector<string>& args){
@@ -337,6 +357,7 @@ void runHistory(vector<string>& args){
     for(int i=1;i<args.size();i++){
         if(args[i]!=" "){
             limit=min(limit,stoi(args[i]));
+
         }
     }
     HIST_ENTRY **hist=history_list();

@@ -25,5 +25,6 @@ void search(string fileName);
 bool searchRecursively(DIR* currPath,string targetFile);
 void runBgProcess(vector<string>& args);
 void runHistory(vector<string>&);
+void runPinfo(pid_t pid,bool isBg,vector<string>& args);
 #endif
 

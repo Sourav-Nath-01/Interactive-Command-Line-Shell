@@ -59,6 +59,9 @@ int main(){
             else if(args[0]=="history"){
                 runHistory(args);
             }
+            else if(args[0]=="pinfo"){
+                runPinfo(getpid(),isBgProcess,args);
+            }
             else{
                 cout<<"Command not found";
             }
