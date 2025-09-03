@@ -1,6 +1,8 @@
 # Compiler settings
 CXX = g++
 CXXFLAGS = -Wall -Wextra -std=c++17 -Iinclude
+LDFLAGS = -lreadline
+OBJ = obj/main.o obj/shell.o
 
 # Directories
 SRC_DIR = src

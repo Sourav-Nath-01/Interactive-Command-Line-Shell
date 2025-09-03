@@ -1,11 +1,8 @@
 apple
-banana
+date hello
+grape
+banana hello
 cherry
-date
-elderberry
-fig
+hello elderberry
 grape
 honeydew
-kiwi
-lemon
-mango

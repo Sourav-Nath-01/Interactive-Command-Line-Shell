@@ -9,6 +9,7 @@
 #include <readline/history.h>
 #include<signal.h>
 pid_t fgpid = 0; 
+vector<string> fdArgs;
 using namespace std;
 void handleSigint(int sig) {
     if (fgpid != 0) {
@@ -19,6 +20,7 @@ void handleSigint(int sig) {
 void handleSigtstp(int sig) {
     if (fgpid != 0) {
         kill(fgpid, SIGTSTP);
+        runBgProcess(fdArgs);
         cout << "\nProcess stopped and pushed to background\n";
     }
 }
@@ -77,6 +79,7 @@ int main(){
             for(string tokenizestr:tokens){
             vector<string> args;
             splitToken(tokenizestr,args);
+            fdArgs=args;
             for(string it:args){
                 if(it=="&"){
                     isBgProcess=true;
@@ -88,7 +91,7 @@ int main(){
             if(isPipeline){
                 runPipeline(str,isBgProcess,fgpid,prevDir);
             }
-            if(isBgProcess==false){
+            else if(isBgProcess==false){
                 runForeGroundProcess(args,prevDir);
             }
             else{

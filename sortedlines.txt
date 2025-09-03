@@ -1,9 +1,8 @@
-aa
-bb
-bb
-cc
-ccdd
-ddd
-ee
-gg
-ss
+apple
+banana
+cherry
+date
+elderberry
+grape
+grape
+honeydew
