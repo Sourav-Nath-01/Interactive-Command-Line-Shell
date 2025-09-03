@@ -9,13 +9,15 @@
 #include <sys/stat.h>
 #include "shell.h"
 #include<grp.h>
+#include<fcntl.h>
+#include<sys/wait.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 #include<fstream>
 using namespace std;
 
 string shellStart;
-
+extern pid_t fgpid;
 string checkingPath(string dir,string home){
     bool flag=1;
     string path="";
@@ -63,6 +65,20 @@ void splitToken(string str,vector<string>& args){
     }
 }
 
+void splitTokenByPipe(string str,vector<string>& args){
+    char temp[str.size()+1];
+    strcpy(temp,str.c_str());
+    char *token=strtok(temp,"|");
+    while(token){
+        string s=token;
+        s.erase(0, s.find_first_not_of(" \t"));
+        s.erase(s.find_last_not_of(" \t") + 1);
+
+        if(s.empty()==false)
+            args.push_back(s);
+        token=strtok(NULL,"|");
+    }
+}
 void tokenize(string str,vector<string> &tokens){
     char temp[str.size() + 1];
     strcpy(temp, str.c_str());
@@ -113,6 +129,7 @@ void  runcd(vector<string> words,string& prevDir){
     else if(words[1]=="-"){
         if(prevDir==""){
             cout<<"OLDPWD not set"<<endl;
+            return;
         }
         else{
         path=prevDir;
@@ -123,7 +140,7 @@ void  runcd(vector<string> words,string& prevDir){
     }
     int valid=chdir(path.c_str());  
     if(valid!=0){
-        cout<<"No such file or directory";
+        perror("No such file or directory");
     }
     
     prevDir=cwd;
@@ -327,6 +344,51 @@ void runBgProcess(vector<string>& args){
         execvp(newArgs[0],newArgs);
     }
 }
+void runForeGroundProcess(vector<string> args,string prevDir){
+    
+    fgpid=fork();
+    if(fgpid<0){
+        perror("fork failed");
+    }
+    if(fgpid>0){
+        //parent process
+        if(args[0]=="cd"){
+                runcd(args,prevDir);
+        }
+        else{
+        int status;
+        waitpid(fgpid,&status,WUNTRACED);
+        fgpid=0;
+        }
+        return;
+    }
+    else{
+        //child process
+            signal(SIGINT, SIG_DFL);
+            signal(SIGTSTP, SIG_DFL);
+            if(args[0]=="exit"){
+                write_history("shellHistory.txt");
+                exit(0);
+            }
+            else if(args[0]=="pwd" || args[0]=="echo" || args[0]=="ls" || args[0]=="history" || args[0]=="pinfo"){
+                runCommand(args,false,getpid());
+            }
+            else if(args[0]=="search"){
+                runSearch(args);
+            }
+            else{
+                int n=args.size();
+                char* newArgs[n+1];
+                for(int i=0;i<n;i++){
+                    newArgs[i]=const_cast<char*>(args[i].c_str());
+                }
+                newArgs[n]=NULL;
+                
+               ioRedirection(args);
+            }
+            exit(0);
+    }
+}
 //will do later
 void runPinfo(pid_t pid,bool isBg,vector<string>& args){
     for(int i=1;i<args.size();i++){
@@ -365,4 +427,403 @@ void runHistory(vector<string>& args){
     for(int i=0;i<len && i<limit;i++){
         cout<<hist[i]->line<<endl;
     }
+}
+
+// void caseOneEcho(vector<string>& args){
+//     string text;
+//     int i;
+//     for(i=1;i<args.size();i++){
+//         if(i>1){
+//             text+=" ";
+//         }
+//         text+=args[i];
+//         int n=text.size();
+//         if(args[i].back()=='"'){
+//             break;
+//         }
+//     }
+//     i++;
+//     string modifiedText="";
+//     for(int j=1;j<text.size()-1;j++){
+//         modifiedText+=text[j];
+//     }
+//     modifiedText+="\n";
+//     const char *finModifiedText=modifiedText.c_str();
+//     if(args[i]!=">"){
+//         fprintf(stderr,"Command Not Found");
+//         return;
+    
+//     }
+//     else{
+//         i++;
+//     }
+
+//     const char* fileName=(args[i]).c_str();
+//     int fd=open(fileName,O_WRONLY | O_TRUNC |O_CREAT,0644);
+//     if(fd==-1){
+//         perror("file is not opening");
+//     }
+//     ssize_t byteWritten=write(fd,finModifiedText,modifiedText.size());
+//     close(fd);
+
+// }
+
+void    runUsingExecv(vector<string>& args){
+    string inputFile,outputFile,appendFile;
+    for(int i=0;i<args.size();i++){
+        if(args[i].empty()==false && args[i].front()=='"'){
+            args[i]=args[i].substr(1);
+        }
+        if(args[i].empty()==false && args[i].back()=='"'){
+            args[i]=args[i].substr(0,args[i].size()-1);
+        }
+        if(args[i]=="<" && ((i+1)<args.size())){
+            inputFile=args[i+1];
+            i++;
+        
+        }
+        if(args[i]==">" && ((i+1)<args.size())){
+            outputFile=args[i+1];
+            i++;
+     
+        }
+        if(args[i]==">>" && ((i+1)<args.size())){
+            appendFile=args[i+1];
+            i++;
+        
+        }
+        
+    } 
+       
+        if(inputFile.empty()==false){
+            int srcFd=open(inputFile.c_str(),O_RDONLY );
+            dup2(srcFd,STDIN_FILENO);
+            close(srcFd);
+        }
+        if(outputFile.empty()==false){
+            int targetFd=open(outputFile.c_str(),O_WRONLY | O_TRUNC | O_CREAT,0644);
+            dup2(targetFd,STDOUT_FILENO);
+            close(targetFd);
+        }
+        if(appendFile.empty()==false){
+            int appendFd=open(appendFile.c_str(),O_WRONLY | O_CREAT  | O_APPEND ,0644);
+            dup2(appendFd,STDOUT_FILENO);
+            close(appendFd);
+        }
+
+        
+        vector<char*> newargs;
+        int j;
+        for(j=0;j<args.size();j++){
+            
+            if(args[j]=="<" || args[j]==">" || args[j]==">>"){
+                j+=1;
+                continue;
+            }
+            else{
+            newargs.push_back(const_cast<char*>(args[j].c_str()));
+            }
+        }
+        newargs.push_back(nullptr);
+        execvp(newargs[0],newargs.data());
+        perror("execv failed");
+        exit (1);
+    }
+void runCommand(vector<string>& args,bool isBgProces,pid_t pid){
+    string outputFile,appendFile;
+    int saved_stdout = dup(STDOUT_FILENO);
+    for(int i=0;i<args.size();i++){
+        if(args[i].empty()==false && args[i].front()=='"'){
+            args[i]=args[i].substr(1);
+        }
+        if(args[i].empty()==false && args[i].back()=='"'){
+            args[i]=args[i].substr(0,args[i].size()-1);
+        }
+        if(args[i]=="<" && ((i+1)<args.size())){
+            fprintf(stderr,"Wrong Syntax");
+            return ;
+            i++;
+        
+        }
+        if(args[i]==">" && ((i+1)<args.size())){
+            outputFile=args[i+1];
+            i++;
+     
+        }
+        if(args[i]==">>" && ((i+1)<args.size())){
+            appendFile=args[i+1];
+            i++;
+        
+        }
+    }
+        vector<string> newArgs;
+        for(int i=0;i<args.size();i++){
+            if(args[i]=="<" || args[i]==">" || args[i]==">>"){
+                i++;
+                continue;
+            }
+            newArgs.push_back(args[i]);
+        }
+       
+   
+        if(outputFile.empty()==false){
+            int targetFd=open(outputFile.c_str(),O_WRONLY | O_TRUNC | O_CREAT,0644);
+            dup2(targetFd,STDOUT_FILENO);
+            close(targetFd);
+        }
+        if(appendFile.empty()==false){
+            int appendFd=open(appendFile.c_str(),O_WRONLY | O_CREAT  | O_APPEND ,0644);
+            dup2(appendFd,STDOUT_FILENO);
+            close(appendFd);
+        }
+        if(args[0]=="ls" ){
+            runls(newArgs);
+        }
+        else if(args[0]=="pwd"){
+            runpwd();
+        }
+        else if(args[0]=="pinfo"){
+            runPinfo(pid,isBgProces,newArgs);
+        }
+        else if(args[0]=="history"){
+            runHistory(newArgs);
+        }
+        else if(args[0]=="echo"){
+            runecho(newArgs);
+        }
+        dup2(saved_stdout, STDOUT_FILENO);
+        close(saved_stdout);
+}
+// void ioRedirectionPwd(vector<string> args){
+//     string outputFile,appendFile;
+//     int saved_stdout = dup(STDOUT_FILENO);
+//     for(int i=0;i<args.size();i++){
+//         if(args[i].empty()==false && args[i].front()=='"'){
+//             args[i]=args[i].substr(1);
+//         }
+//         if(args[i].empty()==false && args[i].back()=='"'){
+//             args[i]=args[i].substr(0,args[i].size()-1);
+//         }
+//         if(args[i]=="<" && ((i+1)<args.size())){
+//             fprintf(stderr,"Wrong Syntax");
+//             return ;
+//             i++;
+        
+//         }
+//         if(args[i]==">" && ((i+1)<args.size())){
+//             outputFile=args[i+1];
+//             i++;
+     
+//         }
+//         if(args[i]==">>" && ((i+1)<args.size())){
+//             appendFile=args[i+1];
+//             i++;
+        
+//         }
+//     }
+//         vector<string> newArgs;
+//         for(int i=0;i<args.size();i++){
+//             if(args[i]=="<" || args[i]==">" || args[i]==">>"){
+//                 i++;
+//                 continue;
+//             }
+//             newArgs.push_back(args[i]);
+//         }
+       
+   
+//         if(outputFile.empty()==false){
+//             int targetFd=open(outputFile.c_str(),O_WRONLY | O_TRUNC | O_CREAT,0644);
+//             dup2(targetFd,STDOUT_FILENO);
+//             close(targetFd);
+//         }
+//         if(appendFile.empty()==false){
+//             int appendFd=open(appendFile.c_str(),O_WRONLY | O_CREAT  | O_APPEND ,0644);
+//             dup2(appendFd,STDOUT_FILENO);
+//             close(appendFd);
+//         }
+
+//         runpwd();
+//         dup2(saved_stdout, STDOUT_FILENO);
+//         close(saved_stdout);
+// }
+
+void ioRedirection(vector<string>& args){
+
+    pid_t pid=fork();
+    if(pid<0){
+        perror("fork failed");
+        return;
+    }
+    if(pid>0){
+        //parent process
+        waitpid(pid,NULL,0);
+    }
+    else{
+        //child process 
+            runUsingExecv(args);
+    }
+}
+
+// void runPipeline(string input,bool isBgProcess,pid_t pid,string prevdir){
+//     vector<vector<string>> args;
+//     vector<string> tempArgs;
+//     splitTokenByPipe(input, tempArgs);
+//     for(int i=0;i<tempArgs.size();i++){
+//         vector<string> temp;
+//         splitToken(tempArgs[i],temp);
+//         args.push_back(temp);
+//     }
+
+//     vector<vector<int>> pipes(args.size()-1,vector<int>(2));
+//     for (int i = 0; i < args.size() - 1; i++) {
+//     if (::pipe(pipes[i].data()) == -1) {
+//         perror("pipe");
+//         exit(1);
+//     }
+//     }
+//     for(int i=0;i<args.size();i++){
+//         pid_t pid=fork();
+//         if(pid<0){
+//             perror("fork failed");
+//             exit (1);
+//         }
+//         if(pid==0){
+//             if(i>0){
+//                 dup2(pipes[i-1][0],STDIN_FILENO);
+//             }
+//             if(i<args.size()-1){
+//                 dup2(pipes[i][1],STDOUT_FILENO);
+//             }
+//             for (int j = 0; j < args.size() - 1; j++) {
+//                 close(pipes[j][0]);
+//                 close(pipes[j][1]);
+//             }
+//              vector<string> cmdArgs;
+//             for (auto &s : args[i]) {
+//                 cmdArgs.push_back((s.c_str()));
+//             }
+            
+
+//             // Execute command
+//             if(cmdArgs[0]=="ls" || cmdArgs[0]=="pinfo" || cmdArgs[0]=="pwd"  || cmdArgs[0]=="echo" || cmdArgs[0]=="history"){
+//                 runCommand(cmdArgs,isBgProcess,pid);
+//             }
+//             else if(cmdArgs[0]=="cd"){
+//                 runcd(cmdArgs,prevdir);
+//             }
+//             else if(cmdArgs[0]=="search"){
+//                 runSearch(cmdArgs);
+//             }
+//             else{
+//             cmdArgs.push_back(nullptr);
+//             char *newCmdArgs[cmdArgs.size()];
+//             for(int i=0;i<cmdArgs.size();i++){
+//                 newCmdArgs[i]=cmdArgs[i].data();
+//             }
+//             if (execvp(cmdArgs[0].c_str(), newCmdArgs) == -1) {
+//                 perror("execvp failed");
+//                 exit(1);
+//             }
+//         }
+//         exit(0);
+//     }
+// }
+//       for (int i = 0; i < args.size()-1; i++) {
+//         close(pipes[i][0]);
+//         close(pipes[i][1]);
+
+//     } 
+// for (int i = 0; i < args.size(); i++) {
+//         wait(nullptr);
+//     }
+// }
+
+void runPipeline(string input, bool isBgProcess, pid_t shellPid, string prevdir) {
+    // Step 1: Split input by pipe '|'
+    vector<vector<string>> args;
+    vector<string> tempArgs;
+    splitTokenByPipe(input, tempArgs);
+    for (auto &cmdStr : tempArgs) {
+        vector<string> tokens;
+        splitToken(cmdStr, tokens);
+        args.push_back(tokens);
+    }
+
+    int n = args.size();
+    int pipes[n-1][2];
+
+    // create N-1 pipes
+    for (int i = 0; i < n-1; i++) {
+        if (pipe(pipes[i]) < 0) {
+            perror("pipe failed");
+            exit(1);
+        }
+    }
+
+    for (int i = 0; i < n; i++) {
+        pid_t pid = fork();
+        if (pid == 0) {
+            // child process
+
+            // if not first command, redirect stdin
+            if (i > 0) {
+                dup2(pipes[i-1][0], STDIN_FILENO);
+            }
+
+            // if not last command, redirect stdout
+            if (i < n-1) {
+                dup2(pipes[i][1], STDOUT_FILENO);
+            }
+
+            // close all pipe fds in child
+            for (int j = 0; j < n-1; j++) {
+                close(pipes[j][0]);
+                close(pipes[j][1]);
+            }
+
+            // convert args to char*[]
+            vector<string> newArgs = args[i];
+            char* newArgv[newArgs.size() + 1];
+            for (int k = 0; k < newArgs.size(); k++) {
+                newArgv[k] = const_cast<char*>(newArgs[k].c_str());
+            }
+            newArgv[newArgs.size()] = NULL;
+
+            execvp(newArgv[0], newArgv);
+            perror("exec failed");
+            exit(1);
+        }
+    }
+
+    // parent closes all pipes
+    for (int i = 0; i < n-1; i++) {
+        close(pipes[i][0]);
+        close(pipes[i][1]);
+    }
+
+    // wait for all children
+    for (int i = 0; i < n; i++) {
+        wait(NULL);
+    }
+}
+
+
+
+vector<string> autoComplete(string str){
+    vector<string> commands={"cd","exit","pwd","echo","ls","history","pinfo","search"};
+    vector<string> matchedList;
+    for(int i=0;i<commands.size();i++){
+        bool isMatch=true;
+        int j=0;
+        for(;j<str.size() && j<commands[i].size();j++){
+            if(str[j]!= commands[i][j]){
+                isMatch=false;
+                break;
+            }
+        }
+        if(isMatch && j==str.size()){
+            matchedList.push_back(commands[i]);
+        }
+    }
+    return matchedList;
 }

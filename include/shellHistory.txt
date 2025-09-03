@@ -14,9 +14,7 @@ sleep 5
 sleep 5
 sleep 5
 sleep 5
-cat hello1.txt | wc -l
-
-cat hello1.txt | wc -l
-
 ls
 ls
+cd include
+cd include
