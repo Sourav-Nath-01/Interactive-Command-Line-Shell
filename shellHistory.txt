@@ -1,20 +1,20 @@
-cat hello1.txt | tr ' ' '\n' | sort | uniq -c | sort -nr | head -5
-cat hello1.txt | wc -w
-cat hello1.txt | wc -w
-cat hello1.txt | wc -l
-cat hello1.txt | wc -l
-cat hello1.txt | wc -w
-cat hello1.txt | wc -w
-cat hello1.txt | wc -w
-cat hello1.txt | wc -w
-cat hello1.txt | grep hello
-cat hello1.txt | grep hello
-ls -l | grep "^d" | wc -l
-ls -l | grep "^d" | wc -l
-ps aux | head -5
-ps aux | head -5
-ls | wc -l > count.txt
-ls | wc -l > count.txt
-ls | wc -l > count.txt
-ls | wc -l > count.txt
+echo "hello world" ; echo "hii"
+echo "hello world"; echo "hii"
+echo "hello world"; echo "hii"
+echo "hello " world"
+echo "hello " world"
+exit
+exit
+echo "hii"
+echo "hii"
+echo hi
+echo hi
+echo "hiii" " " hello"
+echo "hiii" " " hello"
+pwd
+pwd
+ls
+ls
+ls -a -l ~ . -al ..
+ls -a -l ~ . -al ..
 exit

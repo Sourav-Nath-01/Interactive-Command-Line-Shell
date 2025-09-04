@@ -13,7 +13,6 @@
 #include<sys/wait.h>
 #include <readline/readline.h>
 #include <readline/history.h>
-#include<fstream>
 using namespace std;
 
 string shellStart;
@@ -24,7 +23,7 @@ string checkingPath(string dir,string home){
     if(dir.size()<home.size()){
         flag=0;
     }
-    for(int i=0;i<home.size();i++){
+    for(size_t i=0;i<home.size();i++){
         if(dir[i]!=home[i]){
             flag=0;
         }
@@ -49,7 +48,9 @@ string shellPrompt(){
     string home=getenv("HOME");
 
     dir=checkingPath(dir,home);
-    string res=username+"@"+hostname+":"+dir+"> ";
+    string res = string("\033[32m") + username + "@" + hostname +
+             "\033[34m:" + dir +
+             "\033[0m> ";
     return res;
 }
 
@@ -87,7 +88,7 @@ void tokenize(string str,vector<string> &tokens){
         string s=token;
         int start = s.find_first_not_of(" \t");
         int end   = s.find_last_not_of(" \t");
-        if (start != string::npos)
+        if (start != (int) string::npos)
             s = s.substr(start, end - start + 1);
 
         tokens.push_back(s);
@@ -109,7 +110,7 @@ void runpwd(){
 }
 
 void runecho(vector<string> words){
-    for(int i=1;i<words.size();i++){
+    for(size_t i=1;i<words.size();i++){
         cout<<words[i]<<" ";
     }
     cout<<endl;
@@ -194,10 +195,11 @@ void printAllDir(bool flagA,bool flagL,int whatDir,string fileName){
     //assuming whatDir = 1 means curr directory
     // 2 means parent directory
     // 3 means root directory
-    DIR *dr;
+    DIR *dr=NULL;
     char path[PATH_MAX];
     string finPath;
     if(fileName!=""){
+        dr=opendir(fileName.c_str());
         finPath=fileName;
     }
     else{
@@ -238,7 +240,12 @@ void printAllDir(bool flagA,bool flagL,int whatDir,string fileName){
     }
     if(dr==NULL){
         perror("opendir failed");
+        return;
     }
+    if(fileName!="." && fileName!=".." && fileName!="~" && fileName!=" " && fileName!=""){
+        cout<<fileName<<":"<<endl;
+    }
+    
     for(struct dirent *i=readdir(dr);i!=NULL;i=readdir(dr)){
         if(flagA==false && (*i).d_name[0]=='.'){
             continue;
@@ -261,7 +268,8 @@ void runls(vector<string>& args){
     flagL=false;
     int temp;
     string fileName="";
-    for(int i=1;i<args.size();i++){
+    bool isPrintedBefore=false;
+    for(size_t i=1;i<args.size();i++){
         if(args[i]=="-l"){
             flagL=true;
         }
@@ -283,11 +291,16 @@ void runls(vector<string>& args){
         }
         if(args[i]!="." && args[i]!=".." && args[i]!="~" && args[i]!=" " && args[i]!="-a" && args[i]!="-l" && args[i]!="-al" && args[i]!="-la"){
             fileName=args[i];
+            printAllDir(flagA,flagL,temp,fileName);
+            flagA=false;
+            flagL=false;
+            isPrintedBefore=true;
         }
 
     }
-   
+    if(isPrintedBefore==false){
     printAllDir(flagA,flagL,temp,fileName);
+    }
    
 }
 bool searchRecursively(DIR* currPath,string targetFile,string parentPath){
@@ -324,7 +337,7 @@ void search(string fileName){
 }
 void runSearch(vector<string>& args){
     string fileName;
-    for(int i=1;i<args.size();i++){
+    for(size_t i=1;i<args.size();i++){
         if(args[i]!=" "){
             fileName=args[i];
         }
@@ -392,12 +405,12 @@ void runForeGroundProcess(vector<string> args,string prevDir){
                 runSearch(args);
             }
             else{
-                int n=args.size();
-                char* newArgs[n+1];
-                for(int i=0;i<n;i++){
-                    newArgs[i]=const_cast<char*>(args[i].c_str());
-                }
-                newArgs[n]=NULL;
+                // int n=args.size();
+                // char* newArgs[n+1];
+                // for(int i=0;i<n;i++){
+                //     newArgs[i]=const_cast<char*>(args[i].c_str());
+                // }
+                // newArgs[n]=NULL;
                 
                ioRedirection(args);
             }
@@ -406,7 +419,7 @@ void runForeGroundProcess(vector<string> args,string prevDir){
 }
 //will do later
 void runPinfo(pid_t pid,bool isBg,vector<string>& args){
-    for(int i=1;i<args.size();i++){
+    for(size_t i=1;i<args.size();i++){
         pid=stoi(args[i]);
     }
     string strPid=to_string(pid);
@@ -482,7 +495,7 @@ void runPinfo(pid_t pid,bool isBg,vector<string>& args){
 //
 void runHistory(vector<string>& args){
     int limit=10;
-    for(int i=1;i<args.size();i++){
+    for(size_t i=1;i<args.size();i++){
         if(args[i]!=" "){
             limit=min(limit,stoi(args[i]));
 
@@ -536,7 +549,7 @@ void runHistory(vector<string>& args){
 
 void    runUsingExecv(vector<string>& args){
     string inputFile,outputFile,appendFile;
-    for(int i=0;i<args.size();i++){
+    for(size_t i=0;i<args.size();i++){
         if(args[i].empty()==false && args[i].front()=='"'){
             args[i]=args[i].substr(1);
         }
@@ -579,7 +592,7 @@ void    runUsingExecv(vector<string>& args){
 
         
         vector<char*> newargs;
-        int j;
+        size_t j;
         for(j=0;j<args.size();j++){
             
             if(args[j]=="<" || args[j]==">" || args[j]==">>"){
@@ -598,13 +611,13 @@ void    runUsingExecv(vector<string>& args){
 void runCommand(vector<string>& args,bool isBgProces,pid_t pid){
     string outputFile,appendFile;
     int saved_stdout = dup(STDOUT_FILENO);
-    for(int i=0;i<args.size();i++){
-        if(args[i].empty()==false && args[i].front()=='"'){
-            args[i]=args[i].substr(1);
-        }
-        if(args[i].empty()==false && args[i].back()=='"'){
-            args[i]=args[i].substr(0,args[i].size()-1);
-        }
+    for(size_t i=0;i<args.size();i++){
+        // if(args[i].empty()==false && args[i].front()=='"'){
+        //     args[i]=args[i].substr(1);
+        // }
+        // if(args[i].empty()==false && args[i].back()=='"'){
+        //     args[i]=args[i].substr(0,args[i].size()-1);
+        // }
         if(args[i]=="<" && ((i+1)<args.size())){
             fprintf(stderr,"Wrong Syntax");
             return ;
@@ -623,7 +636,7 @@ void runCommand(vector<string>& args,bool isBgProces,pid_t pid){
         }
     }
         vector<string> newArgs;
-        for(int i=0;i<args.size();i++){
+        for(size_t i=0;i<args.size();i++){
             if(args[i]=="<" || args[i]==">" || args[i]==">>"){
                 i++;
                 continue;
@@ -805,6 +818,7 @@ void ioRedirection(vector<string>& args){
 // }
 void runPipeline(string input, bool isBgProcess, pid_t shellPid, string prevdir) {
     // Step 1: Split input by pipe '|'
+
     vector<vector<string>> args;
     vector<string> tempArgs;
     splitTokenByPipe(input, tempArgs);
@@ -823,7 +837,7 @@ void runPipeline(string input, bool isBgProcess, pid_t shellPid, string prevdir)
 
             // ---------- [CHANGE #1: handle redirection in single command too] ----------
             int in_fd, out_fd;
-            for (int k = 0; k < newArgs.size();) {
+            for (size_t k = 0; k < newArgs.size();) {
                 if (newArgs[k] == "<") {
                     in_fd = open(newArgs[k+1].c_str(), O_RDONLY);
                     if (in_fd < 0) { perror("open input failed"); exit(1); }
@@ -843,7 +857,7 @@ void runPipeline(string input, bool isBgProcess, pid_t shellPid, string prevdir)
             // --------------------------------------------------------------------------
 
             char* newArgv[newArgs.size() + 1];
-            for (int k = 0; k < newArgs.size(); k++) newArgv[k] = const_cast<char*>(newArgs[k].c_str());
+            for (size_t k = 0; k < newArgs.size(); k++) newArgv[k] = const_cast<char*>(newArgs[k].c_str());
             newArgv[newArgs.size()] = NULL;
             execvp(newArgv[0], newArgv);
             perror("exec failed");
@@ -888,7 +902,7 @@ void runPipeline(string input, bool isBgProcess, pid_t shellPid, string prevdir)
 
             // ---------- [CHANGE #2: handle redirection in pipeline stages] ----------
             int in_fd, out_fd;
-            for (int k = 0; k < newArgs.size();) {
+            for (size_t k = 0; k < newArgs.size();) {
                 if (newArgs[k] == "<") {
                     in_fd = open(newArgs[k+1].c_str(), O_RDONLY);
                     if (in_fd < 0) { perror("open input failed"); exit(1); }
@@ -908,7 +922,7 @@ void runPipeline(string input, bool isBgProcess, pid_t shellPid, string prevdir)
             // -----------------------------------------------------------------------
 
             char* newArgv[newArgs.size() + 1];
-            for (int k = 0; k < newArgs.size(); k++) newArgv[k] = const_cast<char*>(newArgs[k].c_str());
+            for (size_t k = 0; k < newArgs.size(); k++) newArgv[k] = const_cast<char*>(newArgs[k].c_str());
             newArgv[newArgs.size()] = NULL;
 
             execvp(newArgv[0], newArgv);
@@ -931,9 +945,9 @@ void runPipeline(string input, bool isBgProcess, pid_t shellPid, string prevdir)
 vector<string> autoComplete(string str){
     vector<string> commands={"cd","exit","pwd","echo","ls","history","pinfo","search"};
     vector<string> matchedList;
-    for(int i=0;i<commands.size();i++){
+    for(size_t i=0;i<commands.size();i++){
         bool isMatch=true;
-        int j=0;
+        size_t j=0;
         for(;j<str.size() && j<commands[i].size();j++){
             if(str[j]!= commands[i][j]){
                 isMatch=false;
