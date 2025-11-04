@@ -1,8 +1,6 @@
 **Author**
 ===========
 Name: Sourav Nath
-Roll: 2025201054
-Programme: M.Tech (CSE)
 
 **Project Title**
 =================
