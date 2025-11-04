@@ -1,8 +1,0 @@
-apple
-date hello
-grape
-banana hello
-cherry
-hello elderberry
-grape
-honeydew

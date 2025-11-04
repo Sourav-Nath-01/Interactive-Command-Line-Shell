@@ -11,7 +11,7 @@ extern string shellStart;
 
 // functions
 string checkingPath(string dir, string home);
-string shellPrompt();
+string shellPrompt(string rootCheck);
 void splitToken(string str, vector<string>& args);
 void tokenize(string str, vector<string> &tokens);
 void runpwd();
@@ -29,9 +29,8 @@ void runPinfo(pid_t pid,bool isBg,vector<string>& args);
 void ioRedirection(vector<string>& args);
 void runUsingExecv(vector<string>& args);
 void runCommand(vector<string>& args,bool isBgProcess, pid_t pid);
-void runPipeline(std::string input, bool isBgProcess, pid_t pid, std::string prevdir);
-void runForeGroundProcess(vector<string> args,string prevDir);
-void runPipeline(string input, bool isBgProcess, pid_t shellPid, string prevdir);
+void runPipeline(std::string input);
+void runForeGroundProcess(vector<string> args,string& prevDir);
 vector<string> autoComplete(string str);
 #endif
 

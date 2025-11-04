@@ -28,15 +28,15 @@ char* command_generator(const char* text, int state) {
     static vector<string> matches;
     static size_t index;
 
-    if (state == 0) { // first call
-        matches = autoComplete(text); // use your function
+    if (state == 0) { 
+        matches = autoComplete(text); 
         index = 0;
     }
 
     if (index < matches.size()) {
         return strdup(matches[index++].c_str());
     }
-    return nullptr; // no more matches
+    return nullptr; 
 }
 
 char** myCompletion(const char* text, int start, int end) {
@@ -45,8 +45,11 @@ char** myCompletion(const char* text, int start, int end) {
     }
     return nullptr;
 }
-
+   
 int main(){
+     char cwd[PATH_MAX];
+     getcwd(cwd,sizeof(cwd));
+     string rootCheck=cwd;
     read_history("shellHistory.txt");
     string prevDir;
     char startDir[PATH_MAX];
@@ -61,7 +64,7 @@ int main(){
         string str;
         char* input;
             char* path;
-            path=strdup(shellPrompt().c_str());
+            path=strdup(shellPrompt(rootCheck).c_str());
             input=readline(path);
             free(path);
             if(input==NULL){
@@ -74,7 +77,6 @@ int main(){
             vector<string> tokens;
             tokenize(str,tokens);
             bool isBgProcess=false;
-            bool isIOdirection=false;
             bool isPipeline=false;
             for(string tokenizestr:tokens){
             vector<string> args;
@@ -89,7 +91,7 @@ int main(){
                 }
             }
             if(isPipeline){
-                runPipeline(str,isBgProcess,fgpid,prevDir);
+                runPipeline(str);
             }
             else if(isBgProcess==false){
                 runForeGroundProcess(args,prevDir);
@@ -99,9 +101,8 @@ int main(){
             }
 
         }
-        add_history(input);
+        
 
         }
     return 1;
 }
-
